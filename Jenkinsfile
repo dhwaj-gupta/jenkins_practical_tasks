@@ -1,35 +1,54 @@
 pipeline {
-    agent any
-    
+    agent {
+        label 'mavenbuilder'
+    }
+    environment {
+        DOCKER_IMAGE_NAME = 'dguptagrid'
+        DOCKER_REPO = 'mr'
+    }
     stages {
-        stage('Checkstyle') {
+        stage ('Checkstyle') {
             steps {
-                // Assuming you're using Maven for checkstyle
-                sh 'mvn checkstyle:checkstyle'
-                archiveArtifacts artifacts: '**/checkstyle-result.xml', fingerprint: true
+                script {
+                    echo 'RUNNING CHECKSTYLES...'
+                    sh 'mvn checkstyle:checkstyle'
+                }
             }
         }
-        stage('Test') {
+        stage ('Test') {
             steps {
-                // Assuming you're using Maven for running tests
-                sh 'mvn test'
+                script {
+                    echo 'RUNNING TESTS...'
+                    sh 'mvn test'
+                }
             }
         }
-        stage('Build') {
+        stage ('Build') {
             steps {
-                // Assuming you're using Maven for building the application
-                sh 'mvn clean package -DskipTests'
+                script {
+                    echo 'BUILDING ARTIFACTS...'
+                    sh 'mvn clean package'
+                }
             }
         }
-        stage('Create Docker Image for MR') {
+        stage('Build Docker Image') {
             steps {
-                // Assuming Dockerfile is present in the repository root directory
-                sh 'docker build -t myapp:${GIT_COMMIT:0:7} .'
-                sh 'docker tag myapp:${GIT_COMMIT:0:7} <your_registry_url>/mr:latest'
-                sh 'docker push <your_registry_url>/mr:latest'
+                script {
+                    def GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    env.DOCKER_TAG = "${DOCKER_IMAGE_NAME}/${DOCKER_REPO}:${GIT_COMMIT_SHORT}"
+                    sh "docker build -t ${DOCKER_TAG} ."
+                }
+            }
+        }        
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker_hub_login', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    script {
+                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+                        sh "docker image push ${DOCKER_TAG}"
+                    }
+                }
             }
         }
     }
 }
-
-
