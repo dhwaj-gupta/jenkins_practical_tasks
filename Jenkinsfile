@@ -6,7 +6,7 @@ pipeline {
         githubPush()
     }
     environment {
-        DOCKER_IMAGE_NAME = 'dguptagrid'
+        DOCKER_IMAGE_NAME = 'dg150601'
         DOCKER_REPO = 'mr'
         DOCKER_REPO_MAIN = 'main'
     }
